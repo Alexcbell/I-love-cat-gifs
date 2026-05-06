@@ -1,6 +1,6 @@
 const db = require('../database/db');
 const { hasOnlyGifContent, getGifItemsFromMessage } = require('../utils/gifUtils');
-const { hasBoosterRole } = require('../utils/permissions');
+const { hasBoosterRole, hasServerManageMessageImmunity } = require('../utils/permissions');
 const { findDuplicate, warnDuplicateUser } = require('./duplicateService');
 const { logToModChannel } = require('./logService');
 
@@ -26,9 +26,15 @@ function getEffectiveLimit(message, mediaConfig) {
 }
 
 async function deleteOrReply(message, reason) {
+  const immune = await hasServerManageMessageImmunity(message);
+  if (immune) {
+    await logToModChannel(message.guild, 'Media-Share rule skipped', `Channel: ${message.channel}\nUser: ${message.author}\nReason: ${reason}\nSkipped: user has server management permissions`);
+    return;
+  }
+
   const deleted = await message.delete().then(() => true).catch(() => false);
   if (!deleted) {
-    await message.reply(`This message should not be here :(\nReason: ${reason}`).catch(() => null);
+    await message.reply(`Eep! This channel is for GIFs only, so I tried to clean that up.\nReason: ${reason}`).catch(() => null);
   }
   await logToModChannel(message.guild, 'Media-Share rule triggered', `Channel: ${message.channel}\nUser: ${message.author}\nReason: ${reason}\nDeleted: ${deleted ? 'yes' : 'no'}`);
 }
@@ -61,22 +67,31 @@ async function enforceLimit(message, limit) {
   const extra = rows.length - limit;
   if (extra <= 0) return;
 
-  const rowsToDelete = rows.slice(0, extra);
-  for (const row of rowsToDelete) {
+  let deletedCount = 0;
+  for (const row of rows) {
+    if (deletedCount >= extra) break;
+
     const oldMessage = await message.channel.messages.fetch(row.message_id).catch(() => null);
-    if (oldMessage) await oldMessage.delete().catch(() => null);
+    if (oldMessage && await hasServerManageMessageImmunity(oldMessage)) continue;
+    if (oldMessage) {
+      const deleted = await oldMessage.delete().then(() => true).catch(() => false);
+      if (!deleted) continue;
+    }
+
     db.prepare('DELETE FROM gif_messages WHERE message_id = ?').run(row.message_id);
+    deletedCount += 1;
   }
 
-  await logToModChannel(message.guild, 'GIF limit cleanup', `Channel: ${message.channel}\nLimit: ${limit}\nDeleted old GIF messages: ${rowsToDelete.length}`);
+  await logToModChannel(message.guild, 'GIF limit cleanup', `Channel: ${message.channel}\nLimit: ${limit}\nDeleted old GIF messages: ${deletedCount}`);
 }
 
 async function handleMediaShareMessage(message) {
   const mediaConfig = getMediaShareConfig(message.guild.id, message.channel.id);
   if (!mediaConfig) return false;
 
-  const validation = hasOnlyGifContent(message, Boolean(mediaConfig.attachments_enabled));
+  const validation = hasOnlyGifContent(message, Boolean(mediaConfig.attachments_enabled), Boolean(mediaConfig.captions_enabled));
   if (!validation.ok) {
+    if (!mediaConfig.gif_only_enabled) return false;
     await deleteOrReply(message, validation.reason);
     return true;
   }

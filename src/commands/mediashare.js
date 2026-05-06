@@ -21,6 +21,12 @@ module.exports = {
     .addSubcommand(sub => sub.setName('duplicates').setDescription('Enable or disable duplicate GIF DM warnings')
       .addChannelOption(opt => opt.setName('channel').setDescription('Channel').addChannelTypes(ChannelType.GuildText).setRequired(true))
       .addBooleanOption(opt => opt.setName('enabled').setDescription('Whether duplicate DM warnings are enabled').setRequired(true)))
+    .addSubcommand(sub => sub.setName('gifonly').setDescription('Enable or disable non-GIF message deletion')
+      .addChannelOption(opt => opt.setName('channel').setDescription('Channel').addChannelTypes(ChannelType.GuildText).setRequired(true))
+      .addBooleanOption(opt => opt.setName('enabled').setDescription('Whether non-GIF messages are deleted').setRequired(true)))
+    .addSubcommand(sub => sub.setName('captions').setDescription('Enable or disable text captions with GIFs')
+      .addChannelOption(opt => opt.setName('channel').setDescription('Channel').addChannelTypes(ChannelType.GuildText).setRequired(true))
+      .addBooleanOption(opt => opt.setName('enabled').setDescription('Whether GIF captions are allowed').setRequired(true)))
     .addSubcommand(sub => sub.setName('list').setDescription('List Media-Share channels'))
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
 
@@ -65,8 +71,22 @@ module.exports = {
       return interaction.reply({ content: `${channel} duplicate warnings are now ${enabled ? 'enabled' : 'disabled'}.`, ephemeral: true });
     }
 
+    if (sub === 'gifonly') {
+      const channel = interaction.options.getChannel('channel');
+      const enabled = interaction.options.getBoolean('enabled') ? 1 : 0;
+      db.prepare('UPDATE media_share_channels SET gif_only_enabled = ? WHERE guild_id = ? AND channel_id = ?').run(enabled, guildId, channel.id);
+      return interaction.reply({ content: `${channel} GIF-only deletion is now ${enabled ? 'enabled' : 'disabled'}.`, ephemeral: true });
+    }
+
+    if (sub === 'captions') {
+      const channel = interaction.options.getChannel('channel');
+      const enabled = interaction.options.getBoolean('enabled') ? 1 : 0;
+      db.prepare('UPDATE media_share_channels SET captions_enabled = ? WHERE guild_id = ? AND channel_id = ?').run(enabled, guildId, channel.id);
+      return interaction.reply({ content: `${channel} GIF captions are now ${enabled ? 'enabled' : 'disabled'}.`, ephemeral: true });
+    }
+
     const rows = db.prepare('SELECT * FROM media_share_channels WHERE guild_id = ?').all(guildId);
-    const text = rows.length ? rows.map(r => `<#${r.channel_id}> limit=${r.gif_limit} attachments=${Boolean(r.attachments_enabled)} duplicateDMs=${Boolean(r.duplicate_warnings_enabled)}`).join('\n') : 'No Media-Share channels configured.';
+    const text = rows.length ? rows.map(r => `<#${r.channel_id}> limit=${r.gif_limit} attachments=${Boolean(r.attachments_enabled)} duplicateDMs=${Boolean(r.duplicate_warnings_enabled)} gifOnlyDelete=${Boolean(r.gif_only_enabled)} captions=${Boolean(r.captions_enabled)}`).join('\n') : 'No Media-Share channels configured.';
     return interaction.reply({ content: text, ephemeral: true });
   }
 };

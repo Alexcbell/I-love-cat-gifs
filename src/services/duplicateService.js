@@ -12,14 +12,16 @@ function findDuplicate(guildId, normalizedUrl, currentMessageId) {
 async function warnDuplicateUser(message, duplicateRow) {
   if (!duplicateRow) return;
   const body = [
-    'Duplicate GIF detected.',
+    'Hii~ just wanted to let you know this GIF has been posted before!',
     '',
-    `Your message: ${message.url}`,
-    `Original message: ${duplicateRow.message_url}`
+    `Your post: ${message.url}`,
+    `Original post: ${duplicateRow.message_url}`,
+    '',
+    "You don't have to delete it or anything. I just thought you should know!"
   ].join('\n');
 
   await message.author.send(body).catch(async () => {
-    await message.reply('Duplicate GIF detected, but I could not DM you. Please check your privacy settings.').catch(() => null);
+    await message.reply('I tried to whisper you about a duplicate GIF, but your DMs seem closed~').catch(() => null);
   });
 }
 

@@ -76,7 +76,7 @@ function hasAnyLink(message) {
   return extractUrls(message.content).length > 0;
 }
 
-function hasOnlyGifContent(message, attachmentsEnabled = true) {
+function hasOnlyGifContent(message, attachmentsEnabled = true, captionsEnabled = false) {
   const urls = extractUrls(message.content);
   const hasNonGifUrl = urls.some(url => !isGifUrl(url));
   if (hasNonGifUrl) return { ok: false, reason: 'Only GIF links are allowed in this channel.' };
@@ -92,7 +92,7 @@ function hasOnlyGifContent(message, attachmentsEnabled = true) {
   if (!hasGif) return { ok: false, reason: 'Media-Share channels only allow GIF links or GIF attachments.' };
 
   const textWithoutUrls = urls.reduce((text, url) => text.replace(url, ''), message.content).trim();
-  if (textWithoutUrls.length > 0) {
+  if (!captionsEnabled && textWithoutUrls.length > 0) {
     return { ok: false, reason: 'Text messages are not allowed in Media-Share channels.' };
   }
 

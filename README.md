@@ -52,7 +52,14 @@ Set logging, staff role, and booster role:
 ```text
 /config modlog channel:#bot-logs
 /config staffrole role:@Moderator
+/config helperrole role:@Helper
+/config moderatorrole role:@Moderator
+/config adminrole role:@Admin
 /config boosterrole role:@Server Booster
+/config memberrole role:@Member
+/config unverifiedrole role:@Unverified
+/config updateschannel channel:#bot-updates
+/config adminupdates channel:#admin-bot-updates
 ```
 
 Create a column type:
@@ -83,10 +90,11 @@ Enable general-channel non-GIF link filtering:
 
 ### Media-Share channels
 
-- Only GIF links or GIF attachments are allowed.
+- GIF-only deletion is off by default. Staff can enable it with `/mediashare gifonly channel:#channel enabled:true`.
 - Default GIF limit is 50.
 - When the limit is exceeded, the oldest tracked GIF message is deleted.
-- Invalid messages are deleted.
+- Invalid messages are deleted only when GIF-only deletion is enabled.
+- Messages from users with Administrator or Manage Server permissions are never deleted by the bot.
 - If deletion fails, the bot replies with:
 
 ```text
@@ -108,6 +116,12 @@ Enable them again:
 /mediashare attachments channel:#channel enabled:true
 ```
 
+Allow text captions alongside GIFs:
+
+```text
+/mediashare captions channel:#channel enabled:true
+```
+
 ### Duplicate GIFs
 
 If duplicate warnings are enabled, the bot DMs the user with links to both messages:
@@ -119,13 +133,42 @@ Your message: [link]
 Original message: [link]
 ```
 
+Members can use `/gif` to pull a random archived GIF. Optional filters: `channel`, `user`, or `mine:true`.
+
 ### Owned columns
 
 - Staff creates columns.
-- Everyone can view.
+- Members with the configured member role can view. The default role ID is `1501345523368464456`.
+- Users with the configured unverified role are hidden from member channels. The default role ID is `1501346525819699342`.
 - Only owner, collaborators, and staff can post.
 - Owners can use `/columnadd` and `/columnremove`.
+- Owners can use `/column gifonly channel:#channel enabled:true` to enable non-GIF deletion for their column.
+- Owners can use `/column captions channel:#channel enabled:true` to allow captions with GIFs.
+- Owners can use `/column syncperms`, `/column lock`, `/column unlock`, and `/column rename`.
+- Staff can use `/column archive` to freeze a column without deleting it.
 - Server boosters get unlimited GIFs only in their owned column.
+
+Useful column commands:
+
+```text
+/column info channel:#column
+/column syncperms channel:#column
+/column lock channel:#column
+/column unlock channel:#column
+/column rename channel:#column name:new-name
+/column archive channel:#column
+```
+
+Check bot configuration and stale channel records:
+
+```text
+/bot health
+/bot announce message:Hii~ I added something new for everyone!
+```
+
+Public member-facing update notes are posted once per update to the configured updates channel. The default channel ID is `1501699868224131184`.
+
+Admin update reports are posted once per update to the configured admin updates channel. The default channel ID is `1501702021374546071`.
 
 ## Deploying on DigitalOcean with PM2
 
