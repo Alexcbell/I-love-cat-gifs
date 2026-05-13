@@ -105,7 +105,10 @@ async function createAppealChannel(guild, member, category, jailRole, jailedBy, 
   const existing = db.prepare('SELECT channel_id FROM jail_cases WHERE guild_id = ? AND user_id = ? AND active = 1')
     .get(guild.id, member.id);
   const existingChannel = existing?.channel_id ? await guild.channels.fetch(existing.channel_id).catch(() => null) : null;
-  if (existingChannel) return existingChannel;
+  if (existingChannel) {
+    await ensureAppealChannelAccess(existingChannel, member);
+    return existingChannel;
+  }
 
   const channel = await guild.channels.create({
     name: safeChannelName(member.user),
@@ -131,6 +134,17 @@ async function createAppealChannel(guild, member, category, jailRole, jailedBy, 
   ].join('\n')).catch(() => null);
 
   return channel;
+}
+
+async function ensureAppealChannelAccess(channel, member) {
+  if (!channel?.permissionOverwrites) return;
+
+  await channel.permissionOverwrites.edit(member.id, {
+    ViewChannel: true,
+    SendMessages: true,
+    ReadMessageHistory: true,
+    AttachFiles: true
+  }, { reason: 'Jail appeal access restored' });
 }
 
 async function removeMemberRoleForJail(member, jailedBy, reason) {
@@ -250,6 +264,8 @@ async function enforceActiveJail(member) {
     );
     db.prepare('UPDATE jail_cases SET channel_id = ? WHERE guild_id = ? AND user_id = ?')
       .run(channel.id, member.guild.id, member.id);
+  } else {
+    await ensureAppealChannelAccess(channel, member);
   }
 
   return { jailRole, channel };
