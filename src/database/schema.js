@@ -113,6 +113,7 @@ function initSchema() {
       released_by TEXT,
       reason TEXT NOT NULL,
       public_announce INTEGER NOT NULL DEFAULT 0,
+      removed_member_role INTEGER NOT NULL DEFAULT 0,
       active INTEGER NOT NULL DEFAULT 1,
       created_at INTEGER NOT NULL DEFAULT (unixepoch()),
       released_at INTEGER,
@@ -142,6 +143,7 @@ function initSchema() {
   addColumnIfMissing('guild_config', 'jail_role_id', 'TEXT');
   addColumnIfMissing('guild_config', 'jail_category_id', 'TEXT');
   addColumnIfMissing('guild_config', 'jail_appeal_message', "TEXT NOT NULL DEFAULT 'You have been jailed. Use this channel to appeal your punishment or explain your actions. A Moderator or Admin will review it when available.'");
+  addColumnIfMissing('jail_cases', 'removed_member_role', 'INTEGER NOT NULL DEFAULT 0');
   addColumnIfMissing('media_share_channels', 'gif_only_enabled', 'INTEGER NOT NULL DEFAULT 0');
   addColumnIfMissing('media_share_channels', 'captions_enabled', 'INTEGER NOT NULL DEFAULT 0');
   addColumnIfMissing('columns', 'locked', 'INTEGER NOT NULL DEFAULT 0');

@@ -133,26 +133,57 @@ async function createAppealChannel(guild, member, category, jailRole, jailedBy, 
   return channel;
 }
 
+async function removeMemberRoleForJail(member, jailedBy, reason) {
+  const config = getGuildConfig(member.guild.id);
+  const memberRoleId = config.member_role_id;
+  if (!memberRoleId || !member.roles.cache.has(memberRoleId)) return false;
+
+  const memberRole = await member.guild.roles.fetch(memberRoleId).catch(() => null);
+  if (!memberRole) return false;
+
+  await member.roles.remove(memberRole, `Jailed by ${jailedBy.tag}: ${reason}`);
+  return true;
+}
+
+async function restoreMemberRoleAfterJail(member, releasedBy, jailCase) {
+  if (!jailCase?.removed_member_role) return false;
+
+  const config = getGuildConfig(member.guild.id);
+  const memberRoleId = config.member_role_id;
+  if (!memberRoleId || member.roles.cache.has(memberRoleId)) return false;
+
+  const memberRole = await member.guild.roles.fetch(memberRoleId).catch(() => null);
+  if (!memberRole) return false;
+
+  await member.roles.add(memberRole, `Released from jail by ${releasedBy.tag}`);
+  return true;
+}
+
 async function jailMember({ guild, member, jailedBy, reason, publicAnnounce }) {
   const jailRole = await ensureJailRole(guild);
   const category = await ensureJailCategory(guild);
   await syncJailRoleDenies(guild, jailRole.id, category.id);
+  const removedMemberRole = await removeMemberRoleForJail(member, jailedBy, reason);
   await member.roles.add(jailRole, `Jailed by ${jailedBy.tag}: ${reason}`);
   const channel = await createAppealChannel(guild, member, category, jailRole, jailedBy, reason);
 
   db.prepare(`
-    INSERT INTO jail_cases (guild_id, user_id, channel_id, jailed_by, released_by, reason, public_announce, active, created_at, released_at)
-    VALUES (?, ?, ?, ?, NULL, ?, ?, 1, unixepoch(), NULL)
+    INSERT INTO jail_cases (guild_id, user_id, channel_id, jailed_by, released_by, reason, public_announce, removed_member_role, active, created_at, released_at)
+    VALUES (?, ?, ?, ?, NULL, ?, ?, ?, 1, unixepoch(), NULL)
     ON CONFLICT(guild_id, user_id) DO UPDATE SET
       channel_id = excluded.channel_id,
       jailed_by = excluded.jailed_by,
       released_by = NULL,
       reason = excluded.reason,
       public_announce = excluded.public_announce,
+      removed_member_role = CASE
+        WHEN jail_cases.removed_member_role = 1 OR excluded.removed_member_role = 1 THEN 1
+        ELSE 0
+      END,
       active = 1,
       created_at = unixepoch(),
       released_at = NULL
-  `).run(guild.id, member.id, channel.id, jailedBy.id, reason, publicAnnounce ? 1 : 0);
+  `).run(guild.id, member.id, channel.id, jailedBy.id, reason, publicAnnounce ? 1 : 0, removedMemberRole ? 1 : 0);
 
   return { jailRole, channel };
 }
@@ -164,8 +195,10 @@ async function releaseMember({ guild, member, releasedBy }) {
     await member.roles.remove(jailRole, `Released from jail by ${releasedBy.tag}`);
   }
 
-  const jailCase = db.prepare('SELECT channel_id FROM jail_cases WHERE guild_id = ? AND user_id = ? AND active = 1')
+  const jailCase = db.prepare('SELECT channel_id, removed_member_role FROM jail_cases WHERE guild_id = ? AND user_id = ? AND active = 1')
     .get(guild.id, member.id);
+  await restoreMemberRoleAfterJail(member, releasedBy, jailCase);
+
   const channel = jailCase?.channel_id ? await guild.channels.fetch(jailCase.channel_id).catch(() => null) : null;
   if (channel?.isTextBased()) {
     await channel.permissionOverwrites.edit(member.id, {
