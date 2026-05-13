@@ -10,6 +10,8 @@ module.exports = {
     if (!jailCase) return;
 
     const config = getGuildConfig(newMember.guild.id);
+    if (config.jail_role_id && !newMember.roles.cache.has(config.jail_role_id)) return;
+
     if (!config.member_role_id || !newMember.roles.cache.has(config.member_role_id)) return;
     if (oldMember.roles.cache.has(config.member_role_id)) return;
 

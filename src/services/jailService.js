@@ -210,8 +210,6 @@ async function releaseMember({ guild, member, releasedBy }) {
 
   const jailCase = db.prepare('SELECT channel_id, removed_member_role FROM jail_cases WHERE guild_id = ? AND user_id = ? AND active = 1')
     .get(guild.id, member.id);
-  const freshMember = await guild.members.fetch(member.id);
-  const restoredMemberRole = await restoreMemberRoleAfterJail(freshMember, releasedBy, jailCase);
 
   const channel = jailCase?.channel_id ? await guild.channels.fetch(jailCase.channel_id).catch(() => null) : null;
   if (channel?.isTextBased()) {
@@ -224,6 +222,9 @@ async function releaseMember({ guild, member, releasedBy }) {
 
   db.prepare('UPDATE jail_cases SET active = 0, released_by = ?, released_at = unixepoch() WHERE guild_id = ? AND user_id = ?')
     .run(releasedBy.id, guild.id, member.id);
+
+  const freshMember = await guild.members.fetch(member.id);
+  const restoredMemberRole = await restoreMemberRoleAfterJail(freshMember, releasedBy, jailCase);
 
   return { channel, restoredMemberRole };
 }
