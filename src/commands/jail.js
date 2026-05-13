@@ -1,14 +1,31 @@
-const { SlashCommandBuilder } = require('discord.js');
-const { isHelperOrAbove, isModeratorOrAbove } = require('../utils/permissions');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
+const { getGuildConfig, isHelperOrAbove, isModeratorOrAbove } = require('../utils/permissions');
 const { jailMember, releaseMember } = require('../services/jailService');
 const { logToModChannel } = require('../services/logService');
 const db = require('../database/db');
+
+function getStaffTier(member) {
+  if (!member) return 0;
+  if (member.guild.ownerId === member.id) return 4;
+
+  const config = getGuildConfig(member.guild.id);
+  if (member.permissions.has(PermissionFlagsBits.Administrator) || (config.admin_role_id && member.roles.cache.has(config.admin_role_id))) return 3;
+  if (config.moderator_role_id && member.roles.cache.has(config.moderator_role_id)) return 2;
+  if (
+    member.permissions.has(PermissionFlagsBits.ManageChannels)
+    || (config.helper_role_id && member.roles.cache.has(config.helper_role_id))
+    || (config.staff_role_id && member.roles.cache.has(config.staff_role_id))
+  ) return 1;
+
+  return 0;
+}
 
 function canActOnMember(actor, target) {
   if (!actor || !target) return false;
   if (target.id === actor.id) return false;
   if (target.user.bot) return false;
   if (actor.guild.ownerId === actor.id) return true;
+  if (getStaffTier(actor) <= getStaffTier(target)) return false;
   return actor.roles.highest.comparePositionTo(target.roles.highest) > 0;
 }
 
