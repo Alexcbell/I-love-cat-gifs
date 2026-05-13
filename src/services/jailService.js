@@ -3,6 +3,7 @@ const db = require('../database/db');
 const { getGuildConfig } = require('../utils/permissions');
 
 const DEFAULT_JAIL_MESSAGE = 'You have been jailed. Use this channel to appeal your punishment or explain your actions. A Moderator or Admin will review it when available.';
+const DEFAULT_MEMBER_ROLE_ID = '1501345523368464456';
 
 function safeChannelName(user) {
   const base = user.username || user.globalName || 'user';
@@ -149,7 +150,7 @@ async function ensureAppealChannelAccess(channel, member) {
 
 async function removeMemberRoleForJail(member, jailedBy, reason) {
   const config = getGuildConfig(member.guild.id);
-  const memberRoleId = config.member_role_id;
+  const memberRoleId = config.member_role_id || DEFAULT_MEMBER_ROLE_ID;
   if (!memberRoleId || !member.roles.cache.has(memberRoleId)) return false;
 
   const memberRole = await member.guild.roles.fetch(memberRoleId).catch(() => null);
@@ -160,16 +161,14 @@ async function removeMemberRoleForJail(member, jailedBy, reason) {
 }
 
 async function restoreMemberRoleAfterJail(member, releasedBy, jailCase) {
-  if (!jailCase) return false;
-
   const config = getGuildConfig(member.guild.id);
-  const memberRoleId = config.member_role_id;
+  const memberRoleId = config.member_role_id || DEFAULT_MEMBER_ROLE_ID;
   if (!memberRoleId || member.roles.cache.has(memberRoleId)) return false;
 
   const memberRole = await member.guild.roles.fetch(memberRoleId).catch(() => null);
-  if (!memberRole) return false;
+  if (!memberRole) throw new Error(`I could not find the configured Member role (${memberRoleId}).`);
 
-  await member.roles.add(memberRole, `Released from jail by ${releasedBy.tag}`);
+  await member.roles.add(memberRole.id, `Released from jail by ${releasedBy.tag}`);
   return true;
 }
 
@@ -211,7 +210,8 @@ async function releaseMember({ guild, member, releasedBy }) {
 
   const jailCase = db.prepare('SELECT channel_id, removed_member_role FROM jail_cases WHERE guild_id = ? AND user_id = ? AND active = 1')
     .get(guild.id, member.id);
-  await restoreMemberRoleAfterJail(member, releasedBy, jailCase);
+  const freshMember = await guild.members.fetch(member.id);
+  const restoredMemberRole = await restoreMemberRoleAfterJail(freshMember, releasedBy, jailCase);
 
   const channel = jailCase?.channel_id ? await guild.channels.fetch(jailCase.channel_id).catch(() => null) : null;
   if (channel?.isTextBased()) {
@@ -225,7 +225,7 @@ async function releaseMember({ guild, member, releasedBy }) {
   db.prepare('UPDATE jail_cases SET active = 0, released_by = ?, released_at = unixepoch() WHERE guild_id = ? AND user_id = ?')
     .run(releasedBy.id, guild.id, member.id);
 
-  return { channel };
+  return { channel, restoredMemberRole };
 }
 
 async function enforceActiveJail(member) {

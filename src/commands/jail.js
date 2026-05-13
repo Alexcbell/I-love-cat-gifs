@@ -22,6 +22,8 @@ module.exports = {
       .addBooleanOption(opt => opt.setName('public').setDescription('Publicly announce this jail in the current channel')))
     .addSubcommand(sub => sub.setName('release').setDescription('Approve an appeal and release a jailed member')
       .addUserOption(opt => opt.setName('member').setDescription('Member to release').setRequired(true)))
+    .addSubcommand(sub => sub.setName('approve').setDescription('Approve an appeal and release a jailed member')
+      .addUserOption(opt => opt.setName('member').setDescription('Member to release').setRequired(true)))
     .addSubcommand(sub => sub.setName('deny').setDescription('Deny a jail appeal')
       .addUserOption(opt => opt.setName('member').setDescription('Member whose appeal is denied').setRequired(true))
       .addStringOption(opt => opt.setName('note').setDescription('Optional note for the denial').setMaxLength(900))),
@@ -71,15 +73,15 @@ module.exports = {
       return interaction.reply({ content: 'Moderator and above can approve or deny jail appeals.', ephemeral: true });
     }
 
-    if (sub === 'release') {
+    if (sub === 'release' || sub === 'approve') {
       await interaction.deferReply({ ephemeral: true });
-      const { channel } = await releaseMember({
+      const { channel, restoredMemberRole } = await releaseMember({
         guild: interaction.guild,
         member: targetMember,
         releasedBy: interaction.user
       });
       await logToModChannel(interaction.guild, 'Jail appeal approved', `User: ${targetUser}\nBy: ${interaction.user}${channel ? `\nAppeal: ${channel}` : ''}`);
-      return interaction.editReply(`${targetUser} has been released from jail.${channel ? ` Appeal channel closed: ${channel}` : ''}`);
+      return interaction.editReply(`${targetUser} has been released from jail.${restoredMemberRole ? ' Member role restored.' : ' Member role was already present or could not be changed.'}${channel ? ` Appeal channel closed: ${channel}` : ''}`);
     }
 
     const jailCase = db.prepare('SELECT channel_id FROM jail_cases WHERE guild_id = ? AND user_id = ? AND active = 1')
