@@ -160,7 +160,7 @@ async function removeMemberRoleForJail(member, jailedBy, reason) {
 }
 
 async function restoreMemberRoleAfterJail(member, releasedBy, jailCase) {
-  if (!jailCase?.removed_member_role) return false;
+  if (!jailCase) return false;
 
   const config = getGuildConfig(member.guild.id);
   const memberRoleId = config.member_role_id;
