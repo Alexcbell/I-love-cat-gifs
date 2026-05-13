@@ -214,9 +214,51 @@ async function releaseMember({ guild, member, releasedBy }) {
   return { channel };
 }
 
+async function enforceActiveJail(member) {
+  const jailCase = db.prepare('SELECT * FROM jail_cases WHERE guild_id = ? AND user_id = ? AND active = 1')
+    .get(member.guild.id, member.id);
+  if (!jailCase) return null;
+
+  const jailRole = await ensureJailRole(member.guild);
+  const category = await ensureJailCategory(member.guild);
+  await syncJailRoleDenies(member.guild, jailRole.id, category.id);
+
+  const removedMemberRole = await removeMemberRoleForJail(
+    member,
+    member.client.user,
+    jailCase.reason || 'Active jail case'
+  );
+
+  if (!member.roles.cache.has(jailRole.id)) {
+    await member.roles.add(jailRole, 'Rejoined with an active jail case');
+  }
+
+  if (removedMemberRole && !jailCase.removed_member_role) {
+    db.prepare('UPDATE jail_cases SET removed_member_role = 1 WHERE guild_id = ? AND user_id = ?')
+      .run(member.guild.id, member.id);
+  }
+
+  let channel = jailCase.channel_id ? await member.guild.channels.fetch(jailCase.channel_id).catch(() => null) : null;
+  if (!channel) {
+    channel = await createAppealChannel(
+      member.guild,
+      member,
+      category,
+      jailRole,
+      member.client.user,
+      jailCase.reason || 'Active jail case'
+    );
+    db.prepare('UPDATE jail_cases SET channel_id = ? WHERE guild_id = ? AND user_id = ?')
+      .run(channel.id, member.guild.id, member.id);
+  }
+
+  return { jailRole, channel };
+}
+
 module.exports = {
   ensureJailRole,
   ensureJailCategory,
   jailMember,
-  releaseMember
+  releaseMember,
+  enforceActiveJail
 };
