@@ -40,6 +40,14 @@ function buildRandomGifQuery({ guildId, channelIds, channel, user }) {
   };
 }
 
+async function getPosterName(interaction, userId) {
+  const member = await interaction.guild.members.fetch(userId).catch(() => null);
+  if (member) return member.displayName;
+
+  const user = await interaction.client.users.fetch(userId).catch(() => null);
+  return user?.username || `User ${userId}`;
+}
+
 module.exports = {
   data: new SlashCommandBuilder()
     .setName('gif')
@@ -74,10 +82,11 @@ module.exports = {
       return interaction.reply({ content: "I peeked through the archives, but I couldn't find a matching GIF yet~", ephemeral: true });
     }
 
-    const postedBy = gif.user_id === interaction.user.id ? 'you' : `<@${gif.user_id}>`;
+    const postedBy = await getPosterName(interaction, gif.user_id);
     const source = `<#${gif.channel_id}>`;
     return interaction.reply({
-      content: `I found this one hiding in the archives~\n${gif.normalized_url}\nPosted by ${postedBy} in ${source}: ${gif.message_url}`
+      content: `I found this one hiding in the archives~\n${gif.normalized_url}\nPosted by ${postedBy} in ${source}: ${gif.message_url}`,
+      allowedMentions: { parse: [] }
     });
   }
 };

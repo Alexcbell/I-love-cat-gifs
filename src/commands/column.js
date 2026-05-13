@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const db = require('../database/db');
-const { isStaff, isColumnOwnerOrStaff } = require('../utils/permissions');
+const { isStaff, isModeratorOrAbove, isColumnOwnerOrStaff } = require('../utils/permissions');
 const {
   createColumn,
   addColumnMember,
@@ -61,8 +61,8 @@ module.exports = {
     const sub = interaction.options.getSubcommand();
     const guildId = interaction.guild.id;
 
-    if (['create', 'delete', 'transfer', 'limit', 'archive'].includes(sub) && !isStaff(interaction.member)) {
-      return interaction.reply({ content: 'You do not have permission to use this command.', ephemeral: true });
+    if (['create', 'delete', 'transfer', 'limit', 'archive'].includes(sub) && !isModeratorOrAbove(interaction.member)) {
+      return interaction.reply({ content: 'Moderator and above can approve or manage column requests.', ephemeral: true });
     }
 
     if (sub === 'create') {

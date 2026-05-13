@@ -1,6 +1,6 @@
 # GIF Bot
 
-A Discord bot for GIF-only Media-Share channels, user-owned GIF columns, duplicate GIF warnings, link filtering, and staff configuration.
+A Discord bot for GIF-only Media-Share channels, user-owned GIF columns, duplicate GIF warnings, link filtering, levels, and staff configuration.
 
 ## Requirements
 
@@ -134,6 +134,25 @@ Original message: [link]
 ```
 
 Members can use `/gif` to pull a random archived GIF. Optional filters: `channel`, `user`, or `mine:true`.
+
+### Levels
+
+- Normal messages are worth 10 XP.
+- GIF messages are worth 20 XP.
+- Levels are based on total XP and are tracked per server.
+- Each message is counted once, so history scans can be safely run again later.
+
+Useful level commands:
+
+```text
+/level rank
+/level rank user:@User
+/level leaderboard
+/level scan channel:#general limit:5000
+/level scan limit:1000
+```
+
+`/level scan` is staff-only. With a channel, it scans that channel's previous messages. Without a channel, it scans text channels the bot can view and read. The bot can only award XP for old conversations it has permission to fetch through Discord message history.
 
 ### Owned columns
 

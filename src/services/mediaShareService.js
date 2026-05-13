@@ -87,13 +87,13 @@ async function enforceLimit(message, limit) {
 
 async function handleMediaShareMessage(message) {
   const mediaConfig = getMediaShareConfig(message.guild.id, message.channel.id);
-  if (!mediaConfig) return false;
+  if (!mediaConfig) return { handled: false, accepted: false };
 
   const validation = hasOnlyGifContent(message, Boolean(mediaConfig.attachments_enabled), Boolean(mediaConfig.captions_enabled));
   if (!validation.ok) {
-    if (!mediaConfig.gif_only_enabled) return false;
+    if (!mediaConfig.gif_only_enabled) return { handled: false, accepted: false };
     await deleteOrReply(message, validation.reason);
-    return true;
+    return { handled: true, accepted: false };
   }
 
   const gifs = getGifItemsFromMessage(message);
@@ -106,7 +106,7 @@ async function handleMediaShareMessage(message) {
   }
 
   await enforceLimit(message, getEffectiveLimit(message, mediaConfig));
-  return true;
+  return { handled: true, accepted: true };
 }
 
 module.exports = { handleMediaShareMessage, getMediaShareConfig };

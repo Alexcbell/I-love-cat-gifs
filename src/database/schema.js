@@ -14,6 +14,9 @@ function initSchema() {
       unverified_role_id TEXT NOT NULL DEFAULT '1501346525819699342',
       public_updates_channel_id TEXT NOT NULL DEFAULT '1501699868224131184',
       admin_updates_channel_id TEXT NOT NULL DEFAULT '1501702021374546071',
+      jail_role_id TEXT,
+      jail_category_id TEXT,
+      jail_appeal_message TEXT NOT NULL DEFAULT 'You have been jailed. Use this channel to appeal your punishment or explain your actions. A Moderator or Admin will review it when available.',
       created_at INTEGER NOT NULL DEFAULT (unixepoch())
     );
 
@@ -80,11 +83,53 @@ function initSchema() {
       PRIMARY KEY (guild_id, update_id)
     );
 
+    CREATE TABLE IF NOT EXISTS level_users (
+      guild_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      xp INTEGER NOT NULL DEFAULT 0,
+      message_count INTEGER NOT NULL DEFAULT 0,
+      gif_count INTEGER NOT NULL DEFAULT 0,
+      last_message_at INTEGER,
+      updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      PRIMARY KEY (guild_id, user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS level_messages (
+      guild_id TEXT NOT NULL,
+      message_id TEXT PRIMARY KEY,
+      channel_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      xp_awarded INTEGER NOT NULL,
+      has_gif INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      recorded_at INTEGER NOT NULL DEFAULT (unixepoch())
+    );
+
+    CREATE TABLE IF NOT EXISTS jail_cases (
+      guild_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      channel_id TEXT,
+      jailed_by TEXT NOT NULL,
+      released_by TEXT,
+      reason TEXT NOT NULL,
+      public_announce INTEGER NOT NULL DEFAULT 0,
+      active INTEGER NOT NULL DEFAULT 1,
+      created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+      released_at INTEGER,
+      PRIMARY KEY (guild_id, user_id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_gif_messages_channel_created
       ON gif_messages (guild_id, channel_id, created_at);
 
     CREATE INDEX IF NOT EXISTS idx_gif_messages_url
       ON gif_messages (guild_id, normalized_url);
+
+    CREATE INDEX IF NOT EXISTS idx_level_users_guild_xp
+      ON level_users (guild_id, xp DESC);
+
+    CREATE INDEX IF NOT EXISTS idx_level_messages_guild_channel_created
+      ON level_messages (guild_id, channel_id, created_at);
   `);
 
   addColumnIfMissing('guild_config', 'member_role_id', "TEXT NOT NULL DEFAULT '1501345523368464456'");
@@ -94,6 +139,9 @@ function initSchema() {
   addColumnIfMissing('guild_config', 'helper_role_id', "TEXT NOT NULL DEFAULT '1459616304179712104'");
   addColumnIfMissing('guild_config', 'moderator_role_id', "TEXT NOT NULL DEFAULT '1459616304179712105'");
   addColumnIfMissing('guild_config', 'admin_role_id', "TEXT NOT NULL DEFAULT '1459616304179712106'");
+  addColumnIfMissing('guild_config', 'jail_role_id', 'TEXT');
+  addColumnIfMissing('guild_config', 'jail_category_id', 'TEXT');
+  addColumnIfMissing('guild_config', 'jail_appeal_message', "TEXT NOT NULL DEFAULT 'You have been jailed. Use this channel to appeal your punishment or explain your actions. A Moderator or Admin will review it when available.'");
   addColumnIfMissing('media_share_channels', 'gif_only_enabled', 'INTEGER NOT NULL DEFAULT 0');
   addColumnIfMissing('media_share_channels', 'captions_enabled', 'INTEGER NOT NULL DEFAULT 0');
   addColumnIfMissing('columns', 'locked', 'INTEGER NOT NULL DEFAULT 0');

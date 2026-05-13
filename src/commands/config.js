@@ -1,6 +1,6 @@
 const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 const db = require('../database/db');
-const { isStaff } = require('../utils/permissions');
+const { isAdminOrAbove } = require('../utils/permissions');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -26,10 +26,16 @@ module.exports = {
       .addChannelOption(opt => opt.setName('channel').setDescription('Public updates channel').addChannelTypes(ChannelType.GuildText).setRequired(true)))
     .addSubcommand(sub => sub.setName('adminupdates').setDescription('Set admin bot updates channel')
       .addChannelOption(opt => opt.setName('channel').setDescription('Admin updates channel').addChannelTypes(ChannelType.GuildText).setRequired(true)))
+    .addSubcommand(sub => sub.setName('jailrole').setDescription('Set Jail role')
+      .addRoleOption(opt => opt.setName('role').setDescription('Jail role').setRequired(true)))
+    .addSubcommand(sub => sub.setName('jailcategory').setDescription('Set Jail appeal category')
+      .addChannelOption(opt => opt.setName('category').setDescription('Appeal category').addChannelTypes(ChannelType.GuildCategory).setRequired(true)))
+    .addSubcommand(sub => sub.setName('jailmessage').setDescription('Set automated Jail appeal message')
+      .addStringOption(opt => opt.setName('message').setDescription('Message sent in each appeal channel').setRequired(true).setMaxLength(1800)))
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
   async execute(interaction) {
-    if (!isStaff(interaction.member)) return interaction.reply({ content: 'You do not have permission to use this command.', ephemeral: true });
+    if (!isAdminOrAbove(interaction.member)) return interaction.reply({ content: 'Only Admin and above can change bot configuration.', ephemeral: true });
     const sub = interaction.options.getSubcommand();
     const guildId = interaction.guild.id;
     db.prepare('INSERT OR IGNORE INTO guild_config (guild_id) VALUES (?)').run(guildId);
@@ -86,6 +92,24 @@ module.exports = {
       const channel = interaction.options.getChannel('channel');
       db.prepare('UPDATE guild_config SET admin_updates_channel_id = ? WHERE guild_id = ?').run(channel.id, guildId);
       return interaction.reply({ content: `Admin bot updates channel set to ${channel}.`, ephemeral: true });
+    }
+
+    if (sub === 'jailrole') {
+      const role = interaction.options.getRole('role');
+      db.prepare('UPDATE guild_config SET jail_role_id = ? WHERE guild_id = ?').run(role.id, guildId);
+      return interaction.reply({ content: `Jail role set to ${role}.`, ephemeral: true });
+    }
+
+    if (sub === 'jailcategory') {
+      const category = interaction.options.getChannel('category');
+      db.prepare('UPDATE guild_config SET jail_category_id = ? WHERE guild_id = ?').run(category.id, guildId);
+      return interaction.reply({ content: `Jail appeal category set to ${category}.`, ephemeral: true });
+    }
+
+    if (sub === 'jailmessage') {
+      const message = interaction.options.getString('message');
+      db.prepare('UPDATE guild_config SET jail_appeal_message = ? WHERE guild_id = ?').run(message, guildId);
+      return interaction.reply({ content: 'Jail appeal message updated.', ephemeral: true });
     }
 
     const role = interaction.options.getRole('role');

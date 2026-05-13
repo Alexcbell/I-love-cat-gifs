@@ -7,17 +7,47 @@ function getGuildConfig(guildId) {
 }
 
 function isStaff(member) {
+  return isHelperOrAbove(member);
+}
+
+function hasAnyConfiguredRole(member, roleIds) {
+  return roleIds.filter(Boolean).some(roleId => member.roles.cache.has(roleId));
+}
+
+function hasBaseStaffPermission(member) {
   if (!member) return false;
   if (member.permissions.has(PermissionFlagsBits.Administrator)) return true;
   if (member.permissions.has(PermissionFlagsBits.ManageChannels)) return true;
+  return false;
+}
+
+function isHelperOrAbove(member) {
+  if (!member) return false;
+  if (hasBaseStaffPermission(member)) return true;
   const config = getGuildConfig(member.guild.id);
-  const staffRoleIds = [
+  return hasAnyConfiguredRole(member, [
     config.staff_role_id,
     config.helper_role_id,
     config.moderator_role_id,
     config.admin_role_id
-  ].filter(Boolean);
-  return staffRoleIds.some(roleId => member.roles.cache.has(roleId));
+  ]);
+}
+
+function isModeratorOrAbove(member) {
+  if (!member) return false;
+  if (hasBaseStaffPermission(member)) return true;
+  const config = getGuildConfig(member.guild.id);
+  return hasAnyConfiguredRole(member, [
+    config.moderator_role_id,
+    config.admin_role_id
+  ]);
+}
+
+function isAdminOrAbove(member) {
+  if (!member) return false;
+  if (member.permissions.has(PermissionFlagsBits.Administrator)) return true;
+  const config = getGuildConfig(member.guild.id);
+  return hasAnyConfiguredRole(member, [config.admin_role_id]);
 }
 
 function isColumnOwnerOrStaff(member, channelId) {
@@ -55,6 +85,9 @@ async function hasServerManageMessageImmunity(message) {
 module.exports = {
   getGuildConfig,
   isStaff,
+  isHelperOrAbove,
+  isModeratorOrAbove,
+  isAdminOrAbove,
   isColumnOwnerOrStaff,
   isColumnMemberOrOwnerOrStaff,
   hasBoosterRole,

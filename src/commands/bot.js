@@ -40,6 +40,8 @@ module.exports = {
     const types = db.prepare('SELECT * FROM channel_types WHERE guild_id = ?').all(guildId);
     const linkFilters = db.prepare('SELECT * FROM link_filter_channels WHERE guild_id = ?').all(guildId);
     const gifCount = db.prepare('SELECT COUNT(*) AS count FROM gif_messages WHERE guild_id = ?').get(guildId).count;
+    const levelUserCount = db.prepare('SELECT COUNT(*) AS count FROM level_users WHERE guild_id = ?').get(guildId).count;
+    const levelMessageCount = db.prepare('SELECT COUNT(*) AS count FROM level_messages WHERE guild_id = ?').get(guildId).count;
 
     const missingColumns = columns.filter(column => !interaction.guild.channels.cache.has(column.channel_id));
     const missingMedia = mediaChannels.filter(channel => !interaction.guild.channels.cache.has(channel.channel_id));
@@ -53,16 +55,20 @@ module.exports = {
       roleStatus(interaction.guild, 'Moderator role', config.moderator_role_id),
       roleStatus(interaction.guild, 'Admin role', config.admin_role_id),
       roleStatus(interaction.guild, 'Booster role', config.booster_role_id),
+      roleStatus(interaction.guild, 'Jail role', config.jail_role_id),
       roleStatus(interaction.guild, 'Member view role', config.member_role_id),
       roleStatus(interaction.guild, 'Unverified hidden role', config.unverified_role_id),
       `Mod-log: ${config.modlog_channel_id ? `<#${config.modlog_channel_id}>` : 'not set'}`,
+      `Jail appeals: ${config.jail_category_id ? `<#${config.jail_category_id}>` : 'not set'}`,
       `Public updates: ${config.public_updates_channel_id ? `<#${config.public_updates_channel_id}>` : 'not set'}`,
       `Admin updates: ${config.admin_updates_channel_id ? `<#${config.admin_updates_channel_id}>` : 'not set'}`,
       `Columns: ${columns.length} (${missingColumns.length} missing channels)`,
       `Media-share channels: ${mediaChannels.length} (${missingMedia.length} missing channels)`,
       `Column types: ${types.length} (${missingTypes.length} missing categories)`,
       `Link filters: ${linkFilters.length} (${missingLinkFilters.length} missing channels)`,
-      `Archived GIF records: ${gifCount}`
+      `Archived GIF records: ${gifCount}`,
+      `Level users: ${levelUserCount}`,
+      `Level message records: ${levelMessageCount}`
     ];
 
     const problems = [
